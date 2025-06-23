@@ -34,12 +34,12 @@ ADMIN_IDS=123456789,987654321
 ### Через Procfile (если поддерживается)
 Amvera сама определит команду запуска из Procfile:
 ```
-web: python v_2.0/main_new.py
+web: python v_2.0/main.py
 ```
 
 ### Или вручную:
 ```bash
-python main_new.py
+python main.py
 ```
 
 ## 7. Миграция БД
@@ -50,7 +50,7 @@ rm volleyball_bot.db
 
 ## 8. Логи и отладка
 - Логи выводятся в консоль.
-- Для подробного логирования отредактируйте `main_new.py`:
+- Для подробного логирования отредактируйте `main.py`:
 ```python
 import logging
 logging.basicConfig(level=logging.DEBUG)
