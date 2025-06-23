@@ -6,7 +6,7 @@ from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandle
 
 from config.secure import secrets
 from config.settings import BOT_SETTINGS, MESSAGES, ADMIN_IDS
-from db.database import Database
+from data.database import Database
 from services.event_service import EventService
 from services.notification_service import NotificationService
 from utils.keyboard import create_main_keyboard

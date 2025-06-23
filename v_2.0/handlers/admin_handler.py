@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from services.event_service import EventService
 from services.notification_service import NotificationService
-from db.database import Database
+from data.database import Database
 from utils.keyboard import create_admin_keyboard, create_event_creation_keyboard, create_settings_keyboard, create_main_keyboard
 from config.settings import ADMIN_IDS
 
