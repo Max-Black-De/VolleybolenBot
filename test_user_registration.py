@@ -4,7 +4,7 @@
 """
 
 import sqlite3
-from db.database import Database
+from data.database import Database
 
 def test_user_registration():
     """Тестируем исправленную логику регистрации пользователей"""

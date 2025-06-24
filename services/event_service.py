@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional
-from db.database import Database
+from data.database import Database
 from config.settings import BOT_SETTINGS, MESSAGES
 
 logger = logging.getLogger(__name__)

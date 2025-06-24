@@ -1,7 +1,7 @@
 import logging
 from typing import List, Dict
 from telegram import Bot
-from db.database import Database
+from data.database import Database
 from config.settings import MESSAGES
 
 logger = logging.getLogger(__name__)
