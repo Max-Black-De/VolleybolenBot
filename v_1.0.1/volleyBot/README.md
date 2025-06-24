@@ -1,2 +1,0 @@
-# volleyBot
-# treningStart
