@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import List, Dict
 from telegram import Bot
 from data.database import Database
@@ -22,8 +23,19 @@ class NotificationService:
                     text=f"🏐 Новое событие:\n{event_name}"
                 )
                 logger.info(f"Уведомление о событии {event_id} отправлено пользователю {telegram_id}")
+                # Добавляем задержку между сообщениями
+                await asyncio.sleep(0.1)
             except Exception as e:
-                logger.error(f"Ошибка при отправке уведомления пользователю {telegram_id}: {e}")
+                error_msg = str(e).lower()
+                if "blocked" in error_msg or "forbidden" in error_msg:
+                    logger.warning(f"Пользователь {telegram_id} заблокировал бота")
+                    # Можно отписать пользователя от уведомлений
+                    self.db.update_user_subscription(telegram_id, False)
+                elif "chat not found" in error_msg:
+                    logger.warning(f"Чат с пользователем {telegram_id} не найден")
+                    self.db.update_user_subscription(telegram_id, False)
+                else:
+                    logger.error(f"Ошибка при отправке уведомления пользователю {telegram_id}: {e}")
     
     async def send_participants_update(self, event_id: int, action_user_id: int, action_username: str, action: str):
         """Отправить уведомление об изменении списка участников"""
