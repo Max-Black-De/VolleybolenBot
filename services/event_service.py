@@ -3,6 +3,7 @@ from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional
 from data.database import Database
 from config.settings import BOT_SETTINGS, MESSAGES
+from utils.timezone_utils import get_now_with_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class EventService:
     
     def get_next_training_day(self) -> date:
         """Определить ближайший тренировочный день"""
-        today = datetime.now().date()
+        today = get_now_with_timezone().date()
         weekday = today.weekday()
         if weekday < 3:
             delta_days = 3 - weekday
@@ -40,19 +41,32 @@ class EventService:
         return today + timedelta(days=delta_days)
     
     def create_event_on_date(self, target_date: date) -> int:
-        """Создать событие на конкретную дату, если его ещё нет"""
-        existing_event = self.get_event_by_date(target_date)
+        """Создать событие на конкретную дату и время, если его ещё нет"""
+        training_time = BOT_SETTINGS.get('TRAINING_TIME')
+        if training_time:
+            existing_event = self.get_event_by_date(target_date, training_time)
+        else:
+            existing_event = self.get_event_by_date(target_date)
         if existing_event:
-            logger.info(f"Событие на {target_date} уже существует (ID: {existing_event['id']})")
+            logger.info(f"Событие на {target_date} {training_time} уже существует (ID: {existing_event['id']})")
             return existing_event['id']
         formatted_date = self._format_date_russian(target_date)
-        event_name = f"Запись на тренировку по волейболу\n{formatted_date} в {BOT_SETTINGS['TRAINING_TIME']}"
-        event_id = self.db.create_event(
-            name=event_name,
-            event_date=target_date,
-            event_time=BOT_SETTINGS['TRAINING_TIME'],
-            max_participants=self.max_participants
-        )
+        if training_time:
+            event_name = f"Запись на тренировку по волейболу\n{formatted_date} в {training_time}"
+            event_id = self.db.create_event(
+                name=event_name,
+                event_date=target_date,
+                event_time=training_time,
+                max_participants=self.max_participants
+            )
+        else:
+            event_name = f"Запись на тренировку по волейболу\n{formatted_date}"
+            event_id = self.db.create_event(
+                name=event_name,
+                event_date=target_date,
+                event_time="20:00",
+                max_participants=self.max_participants
+            )
         logger.info(f"Создано событие: {event_name} с ID: {event_id}")
         return event_id
     
@@ -211,8 +225,8 @@ class EventService:
         else:
             return [p for p in participants if p['status'] == 'confirmed' and not p['confirmed_presence'] and p['reminder_sent'] and not p['second_reminder_sent']]
     
-    def get_event_by_date(self, target_date: date) -> Optional[Dict]:
-        """Получить активное событие по дате"""
+    def get_event_by_date(self, target_date: date, target_time: Optional[str] = None) -> Optional[Dict]:
+        """Получить активное событие по дате и времени (если указано)"""
         events = self.get_active_events()
         for event in events:
             if isinstance(event['date'], str):
@@ -220,5 +234,9 @@ class EventService:
             else:
                 event_date = event['date']
             if event_date == target_date:
-                return event
+                if target_time:
+                    if event.get('time') == target_time:
+                        return event
+                else:
+                    return event
         return None 

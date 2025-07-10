@@ -1,11 +1,12 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 from telegram import Update
 from telegram.ext import ContextTypes
 from services.event_service import EventService
 from services.notification_service import NotificationService
 from data.database import Database
-from utils.keyboard import create_admin_keyboard, create_event_creation_keyboard, create_settings_keyboard, create_main_keyboard
+from utils.keyboard import create_admin_keyboard, create_event_creation_keyboard, create_settings_keyboard, create_main_keyboard, get_is_joined
+from utils.timezone_utils import get_now_with_timezone
 from config.settings import ADMIN_IDS
 
 logger = logging.getLogger(__name__)
@@ -36,9 +37,16 @@ async def handle_admin_commands(update: Update, context: ContextTypes.DEFAULT_TY
 
     if text == "🔙 Обычный режим":
         user_data.pop('admin_state', None)
+        
+        # Проверяем текущее состояние пользователя для правильной клавиатуры
+        if not update.effective_user:
+            is_joined = False
+        else:
+            is_joined = get_is_joined(db, event_service, update.effective_user.id)
+        
         await update.message.reply_text(
             "Вы вышли из админского режима.",
-            reply_markup=create_main_keyboard()
+            reply_markup=create_main_keyboard(is_joined=is_joined)
         )
         return
 
@@ -112,13 +120,13 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
         days_offset = 0
         if text == "🏐 Четверг 20:00":
             event_name_part = "Четверг 20:00"
-            days_offset = (3 - datetime.now().weekday() + 7) % 7
+            days_offset = (3 - get_now_with_timezone().weekday() + 7) % 7
         elif text == "🏐 Воскресенье 20:00":
             event_name_part = "Воскресенье 20:00"
-            days_offset = (6 - datetime.now().weekday() + 7) % 7
+            days_offset = (6 - get_now_with_timezone().weekday() + 7) % 7
         
         if event_name_part:
-            target_date = datetime.now().date() + timedelta(days=days_offset)
+            target_date = get_now_with_timezone().date() + timedelta(days=days_offset)
             event_id = event_service.create_event_on_date(target_date)
             event = event_service.get_event_by_id(event_id)
             if event:

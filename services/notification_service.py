@@ -3,6 +3,7 @@ from typing import List, Dict
 from telegram import Bot
 from data.database import Database
 from config.settings import MESSAGES
+from utils.keyboard import create_main_keyboard, get_is_joined
 
 logger = logging.getLogger(__name__)
 
@@ -12,14 +13,19 @@ class NotificationService:
         self.db = database
     
     async def send_event_notification(self, event_id: int, event_name: str):
-        """Отправить уведомление о новом событии всем подписанным пользователям"""
+        """Отправить уведомление о новом событии всем подписанным пользователям с актуальной клавиатурой"""
         subscribed_users = self.db.get_subscribed_users()
+        from services.event_service import EventService
+        event_service = EventService(self.db)
         
         for telegram_id in subscribed_users:
             try:
+                is_joined = get_is_joined(self.db, event_service, telegram_id)
+                keyboard = create_main_keyboard(is_joined=is_joined)
                 await self.bot.send_message(
                     chat_id=telegram_id,
-                    text=f"🏐 Новое событие:\n{event_name}"
+                    text=f"🏐 Новое событие:\n{event_name}",
+                    reply_markup=keyboard
                 )
                 logger.info(f"Уведомление о событии {event_id} отправлено пользователю {telegram_id}")
             except Exception as e:

@@ -2,6 +2,7 @@ import sqlite3
 import logging
 from datetime import datetime, date
 from typing import List, Dict, Optional
+from utils.timezone_utils import get_now_with_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -84,12 +85,14 @@ class Database:
         """Получить все активные события"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Используем текущую дату с таймзоной вместо SQL DATE('now')
+            current_date = get_now_with_timezone().date()
             cursor.execute('''
                 SELECT id, name, date, time, max_participants, status
                 FROM events 
-                WHERE status = 'active' AND date >= DATE('now')
+                WHERE status = 'active' AND date >= ?
                 ORDER BY date, time
-            ''')
+            ''', (current_date,))
             columns = [description[0] for description in cursor.description]
             return [dict(zip(columns, row)) for row in cursor.fetchall()]
     
@@ -120,10 +123,12 @@ class Database:
         """Удалить прошедшие события"""
         with self.get_connection() as conn:
             cursor = conn.cursor()
+            # Используем текущую дату с таймзоной вместо SQL DATE('now')
+            current_date = get_now_with_timezone().date()
             cursor.execute('''
                 DELETE FROM events 
-                WHERE date < DATE('now')
-            ''')
+                WHERE date < ?
+            ''', (current_date,))
             conn.commit()
     
     # Методы для работы с пользователями

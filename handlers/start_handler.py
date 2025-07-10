@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from services.event_service import EventService
 from services.notification_service import NotificationService
 from data.database import Database
-from utils.keyboard import create_main_keyboard
+from utils.keyboard import create_main_keyboard, get_is_joined
 from config.settings import MESSAGES
 
 logger = logging.getLogger(__name__)
@@ -32,8 +32,8 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE,
             event_id = current_event['id']
             
             # Проверяем, записан ли пользователь
-            participant = db.get_participant(event_id, user.id)
-            is_joined = participant is not None
+            is_joined = get_is_joined(db, event_service, user.id)
+            logger.info(f"DEBUG: /start user.id={user.id}, is_joined={is_joined}")
             
             # Создаем клавиатуру
             keyboard = create_main_keyboard(is_joined=is_joined)

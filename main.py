@@ -9,7 +9,7 @@ from config.settings import BOT_SETTINGS, MESSAGES, ADMIN_IDS
 from data.database import Database
 from services.event_service import EventService
 from services.notification_service import NotificationService
-from utils.keyboard import create_main_keyboard
+from utils.keyboard import create_main_keyboard, get_is_joined
 from handlers.start_handler import handle_start
 from handlers.event_handler import handle_event_actions
 from handlers.admin_handler import handle_admin_commands
@@ -26,11 +26,16 @@ TOKEN = secrets.get('BOT_API_TOKEN')
 if not TOKEN:
     raise ValueError("BOT_API_TOKEN не найден в config/secure.py")
 
+# Убеждаемся, что TOKEN не None для типизации
+assert TOKEN is not None, "BOT_API_TOKEN не может быть None"
+
 db = Database()
 event_service = EventService(db)
 
 class VolleyballBot:
     def __init__(self):
+        # TOKEN уже проверен выше, поэтому здесь он точно не None
+        # assert выше гарантирует что TOKEN не None
         self.application = ApplicationBuilder().token(TOKEN).build()
         self.db = Database()
         self.event_service = EventService(self.db)
@@ -61,14 +66,14 @@ class VolleyballBot:
         # Напоминания за 2 часа до тренировки
         job_queue.run_daily(self.send_presence_reminders, time(hour=18, minute=0), days=(3, 6))  # 3=четверг, 6=воскресенье
         
-        # Повторные напоминания за 1:03 до тренировки
-        job_queue.run_daily(self.send_second_reminders, time(hour=18, minute=57), days=(3, 6))
+        # Повторные напоминания за 1:05 до тренировки
+        job_queue.run_daily(self.send_second_reminders, time(hour=18, minute=55), days=(3, 6))
         
-        # Автоматическая отписка через 3 минуты после второго напоминания
+        # Автоматическая отписка через 5 минуты после второго напоминания
         job_queue.run_daily(self.auto_leave_unconfirmed, time(hour=19, minute=0), days=(3, 6))
         
         # Очистка прошедших событий
-        job_queue.run_daily(self.cleanup_past_events, time(hour=23, minute=59))
+        job_queue.run_daily(self.cleanup_past_events, time(hour=22, minute=1))
         
         # Создание первого события при запуске
         job_queue.run_once(self.create_initial_event, 0)
@@ -120,15 +125,13 @@ class VolleyballBot:
             return
         user = update.effective_user
         
+        # Инициализируем user_data если его нет
+        if context.user_data is None:
+            context.user_data = {}
+        
         # Сначала проверяем, является ли пользователь админом в админ-меню
         if user.id in ADMIN_IDS and context.user_data.get('admin_state'):
             await handle_admin_commands(update, context, self.event_service, self.notification_service, self.db)
-            return
-
-        # Проверяем, есть ли ожидающее подтверждение отписки
-        pending_data = context.user_data.get('pending_leave_confirmation')
-        if pending_data and pending_data['telegram_id'] == user.id:
-            await self.handle_leave_text_confirmation(update, context, text)
             return
 
         # Обрабатываем обычные сообщения
@@ -137,6 +140,9 @@ class VolleyballBot:
     async def handle_leave_confirmation_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: list):
         """Обработка подтверждения отписки через инлайн-кнопки"""
         query = update.callback_query
+        if not query:
+            return
+            
         action = data[0]
         event_id = int(data[2])
         telegram_id = int(data[3])
@@ -149,64 +155,46 @@ class VolleyballBot:
             return
         
         elif action == "confirm":
-            # Пользователь подтвердил отписку, переходим к текстовому подтверждению
-            await query.edit_message_text(MESSAGES['leave_text_confirmation'])
-            context.user_data['pending_leave_confirmation'] = {
-                'event_id': event_id,
-                'telegram_id': telegram_id
-            }
-    
-    async def handle_leave_text_confirmation(self, update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
-        """Обработка текстового подтверждения отписки"""
-        user = update.effective_user
-        pending_data = context.user_data.get('pending_leave_confirmation')
-        
-        if not pending_data or pending_data['telegram_id'] != user.id:
-            return
-        
-        event_id = pending_data['event_id']
-        text_lower = text.lower()
-        
-        if text_lower == 'да':
-            # Пользователь подтвердил отписку
-            result = self.event_service.leave_event(event_id, user.id)
-            
+            # Пользователь подтвердил отписку — сразу отписываем
+            user = update.effective_user
+            if not user:
+                return
+            result = self.event_service.leave_event(event_id, telegram_id)
             if result['success']:
-                await update.message.reply_text(result['message'])
-                
+                await query.edit_message_text(result['message'])
                 # Уведомляем всех об изменении
                 await self.notification_service.send_participants_update(
-                    event_id, user.id, user.username or f"Пользователь {user.id}", "отписался"
+                    event_id, telegram_id, user.username or f"Пользователь {telegram_id}", "отписался"
                 )
-                
                 # Если кто-то переместился из резерва, уведомляем его
                 if result.get('moved_participant'):
                     moved_user = result['moved_participant']
                     await self.notification_service.send_moved_to_main_notification(
                         moved_user['telegram_id'], moved_user['username']
                     )
-                
-                # Обновляем клавиатуру
-                await update.message.reply_text(
-                    "Обновлено", 
-                    reply_markup=create_main_keyboard(is_joined=False)
+                # Отправляем новое сообщение с актуальной клавиатурой
+                is_joined = get_is_joined(self.db, self.event_service, telegram_id)
+                await self.application.bot.send_message(
+                    chat_id=telegram_id,
+                    text="Обновлено",
+                    reply_markup=create_main_keyboard(is_joined=is_joined)
                 )
             else:
-                await update.message.reply_text(result['message'])
-        
-        elif text_lower == 'нет':
-            # Пользователь передумал
-            await update.message.reply_text(MESSAGES['leave_cancelled'])
-        
-        # Удаляем данные подтверждения
-        del context.user_data['pending_leave_confirmation']
-    
+                await query.edit_message_text(result['message'])
+
     async def handle_presence_confirmation_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: list):
         """Обработка подтверждения присутствия"""
         query = update.callback_query
+        if not query:
+            return
+            
         action = data[0]
         event_id = int(data[2])
         telegram_id = int(data[3])
+        
+        # Инициализируем user_data если его нет
+        if context.user_data is None:
+            context.user_data = {}
         
         if action == "confirm_presence":
             # Пользователь подтвердил присутствие

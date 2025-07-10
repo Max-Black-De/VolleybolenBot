@@ -60,3 +60,12 @@ def create_settings_keyboard() -> ReplyKeyboardMarkup:
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
+def get_is_joined(db, event_service, telegram_id):
+    """Проверить, записан ли пользователь на ближайшее активное событие по таблице participants"""
+    active_events = event_service.get_active_events()
+    if not active_events:
+        return False
+    event_id = active_events[0]['id']
+    participant = db.get_participant(event_id, telegram_id)
+    return participant is not None
+

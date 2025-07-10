@@ -4,7 +4,7 @@ from telegram.ext import ContextTypes
 from services.event_service import EventService
 from services.notification_service import NotificationService
 from data.database import Database
-from utils.keyboard import create_main_keyboard, create_leave_confirmation_keyboard
+from utils.keyboard import create_main_keyboard, create_leave_confirmation_keyboard, get_is_joined
 from config.settings import MESSAGES
 
 logger = logging.getLogger(__name__)
@@ -31,12 +31,10 @@ async def handle_event_actions(update: Update, context: ContextTypes.DEFAULT_TYP
     current_event = active_events[0]
     event_id = current_event['id']
     
-    # Проверяем, записан ли пользователь
-    participant = db.get_participant(event_id, user.id)
-    is_joined = participant is not None
+    # Удаляю все старые проверки статуса пользователя, оставляю только get_is_joined
     
     if text == "Иду на тренировку!":
-        await handle_join_event(update, context, event_service, notification_service, event_id, user)
+        await handle_join_event(update, context, event_service, notification_service, db, event_id, user)
     
     elif text == "Передумал! Отписываюсь(":
         await handle_leave_event(update, context, event_service, notification_service, event_id, user)
@@ -45,11 +43,12 @@ async def handle_event_actions(update: Update, context: ContextTypes.DEFAULT_TYP
         await handle_show_participants(update, context, event_service, event_id)
     
     else:
-        await update.message.reply_text("Неизвестная команда. Используйте кнопки для выбора действия.")
+        # Обновляем клавиатуру в соответствии с текущим состоянием
+        await update_main_keyboard(update, db, event_service, user)
 
 async def handle_join_event(update: Update, context: ContextTypes.DEFAULT_TYPE, 
                            event_service: EventService, notification_service: NotificationService, 
-                           event_id: int, user):
+                           db: Database, event_id: int, user):
     """Обработка записи на событие"""
     if not update.message:
         return
@@ -78,15 +77,20 @@ async def handle_join_event(update: Update, context: ContextTypes.DEFAULT_TYPE,
                 event_id, user.id, user.username or f"Пользователь {user.id}", "записался"
             )
             
-            # Обновляем клавиатуру
+            # Проверяем актуальное состояние пользователя и обновляем клавиатуру
+            is_joined = get_is_joined(db, event_service, user.id)
+            
             await update.message.reply_text(
                 "Обновлено", 
-                reply_markup=create_main_keyboard(is_joined=True)
+                reply_markup=create_main_keyboard(is_joined=is_joined)
             )
         else:
+            # Проверяем актуальное состояние пользователя
+            is_joined = get_is_joined(db, event_service, user.id)
+            
             await update.message.reply_text(
                 result['message'],
-                reply_markup=create_main_keyboard(is_joined=True)
+                reply_markup=create_main_keyboard(is_joined=is_joined)
             )
     
     except Exception as e:
@@ -128,4 +132,20 @@ async def handle_show_participants(update: Update, context: ContextTypes.DEFAULT
     
     except Exception as e:
         logger.error(f"Ошибка при показе списка участников: {e}", exc_info=True)
-        await update.message.reply_text("Ошибка при получении списка участников") 
+        await update.message.reply_text("Ошибка при получении списка участников")
+
+async def update_main_keyboard(update: Update, db: Database, event_service: EventService, user):
+    """Обновить главную клавиатуру в соответствии с текущим состоянием пользователя"""
+    if not update.message:
+        return
+        
+    try:
+        # Проверяем актуальное состояние пользователя
+        is_joined = get_is_joined(db, event_service, user.id)
+        # Обновляем клавиатуру
+        await update.message.reply_text(
+            "Клавиатура обновлена", 
+            reply_markup=create_main_keyboard(is_joined=is_joined)
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при обновлении клавиатуры: {e}", exc_info=True) 
