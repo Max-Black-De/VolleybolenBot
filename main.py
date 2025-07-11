@@ -72,8 +72,8 @@ class VolleyballBot:
         # Автоматическая отписка через 5 минуты после второго напоминания
         job_queue.run_daily(self.auto_leave_unconfirmed, time(hour=19, minute=0), days=(3, 6))
         
-        # Очистка прошедших событий
-        job_queue.run_daily(self.cleanup_past_events, time(hour=22, minute=1))
+        # Очистка прошедших событий каждый день в 23:59
+        job_queue.run_daily(self.cleanup_past_events, time(hour=23, minute=59))
         
         # Создание первого события при запуске
         job_queue.run_once(self.create_initial_event, 0)

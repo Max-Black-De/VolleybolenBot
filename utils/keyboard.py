@@ -60,6 +60,15 @@ def create_settings_keyboard() -> ReplyKeyboardMarkup:
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
+def create_participant_limit_keyboard() -> ReplyKeyboardMarkup:
+    """Создать клавиатуру для выбора лимита участников"""
+    keyboard = [
+        ["4 участника", "6 участников"],
+        ["12 участников", "18 участников"],
+        ["24 участника", "🔙 Назад"]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
 def get_is_joined(db, event_service, telegram_id):
     """Проверить, записан ли пользователь на ближайшее активное событие по таблице participants"""
     active_events = event_service.get_active_events()

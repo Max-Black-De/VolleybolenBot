@@ -5,7 +5,7 @@ from telegram.ext import ContextTypes
 from services.event_service import EventService
 from services.notification_service import NotificationService
 from data.database import Database
-from utils.keyboard import create_admin_keyboard, create_event_creation_keyboard, create_settings_keyboard, create_main_keyboard, get_is_joined
+from utils.keyboard import create_admin_keyboard, create_event_creation_keyboard, create_settings_keyboard, create_main_keyboard, get_is_joined, create_participant_limit_keyboard
 from utils.timezone_utils import get_now_with_timezone
 from config.settings import ADMIN_IDS
 
@@ -55,9 +55,11 @@ async def handle_admin_commands(update: Update, context: ContextTypes.DEFAULT_TY
     elif admin_state == 'create_event':
         await handle_create_event(update, context, text, event_service, notification_service)
     elif admin_state == 'settings':
-        await handle_settings(update, context, text)
+        await handle_settings(update, context, text, event_service)
     elif admin_state == 'confirm_delete':
         await handle_confirm_delete(update, context, text, event_service)
+    elif admin_state == 'participant_limit':
+        await handle_participant_limit(update, context, text, event_service)
     elif admin_state is None and text in [
         "📅 Создать событие", "❌ Отменить событие", "👥 Список пользователей", 
         "📊 Статистика", "⚙️ Настройки"
@@ -145,16 +147,68 @@ async def handle_create_event(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(f"❌ Ошибка при создании события: {e}")
 
 
-async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str):
+async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, event_service: EventService):
     """Обработка настроек."""
     if not update.message:
         return
     user_data = context.user_data if context.user_data is not None else {}
+    
     if text == "🔙 Назад":
         user_data['admin_state'] = 'main'
         await update.message.reply_text("Админское меню:", reply_markup=create_admin_keyboard())
         return
+    elif text == "👥 Лимит участников":
+        current_limit = event_service.get_participant_limit()
+        user_data['admin_state'] = 'participant_limit'
+        await update.message.reply_text(
+            f"Текущий лимит участников: {current_limit}\n\nВыберите новый лимит:",
+            reply_markup=create_participant_limit_keyboard()
+        )
+        return
+    
     await update.message.reply_text("Функция настроек пока в разработке.")
+
+
+async def handle_participant_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, event_service: EventService):
+    """Обработка изменения лимита участников."""
+    if not update.message:
+        return
+    user_data = context.user_data if context.user_data is not None else {}
+    
+    if text == "🔙 Назад":
+        user_data['admin_state'] = 'settings'
+        await update.message.reply_text("Настройки:", reply_markup=create_settings_keyboard())
+        return
+    
+    # Парсим лимит из текста
+    limit_map = {
+        "4 участника": 4,
+        "6 участников": 6,
+        "12 участников": 12,
+        "18 участников": 18,
+        "24 участника": 24
+    }
+    
+    if text in limit_map:
+        new_limit = limit_map[text]
+        old_limit = event_service.get_participant_limit()
+        
+        # Устанавливаем новый лимит
+        event_service.set_participant_limit(new_limit)
+        
+        await update.message.reply_text(
+            f"✅ Лимит участников изменен с {old_limit} на {new_limit}.\n\n"
+            "Статусы участников пересчитаны автоматически."
+        )
+        
+        # Возвращаемся в главное админское меню
+        user_data['admin_state'] = 'main'
+        await update.message.reply_text("Админское меню:", reply_markup=create_admin_keyboard())
+    else:
+        await update.message.reply_text(
+            "Пожалуйста, выберите лимит из предложенных вариантов:",
+            reply_markup=create_participant_limit_keyboard()
+        )
 
 
 async def show_active_events_for_deletion(update: Update, context: ContextTypes.DEFAULT_TYPE, event_service: EventService):

@@ -63,6 +63,23 @@ class Database:
                 )
             ''')
             
+            # Таблица настроек бота
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS bot_settings (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    setting_key TEXT UNIQUE NOT NULL,
+                    setting_value TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Инициализируем настройки по умолчанию
+            cursor.execute('''
+                INSERT OR IGNORE INTO bot_settings (setting_key, setting_value) 
+                VALUES ('participant_limit', '18')
+            ''')
+            
             conn.commit()
             logger.info("База данных инициализирована")
     
@@ -468,4 +485,80 @@ class Database:
             if row:
                 columns = [description[0] for description in cursor.description]
                 return dict(zip(columns, row))
-            return None 
+            return None
+    
+    # Методы для работы с настройками бота
+    def get_setting(self, key: str, default: str = "") -> str:
+        """Получить значение настройки"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT setting_value FROM bot_settings WHERE setting_key = ?', (key,))
+            row = cursor.fetchone()
+            return row[0] if row else default
+    
+    def set_setting(self, key: str, value: str):
+        """Установить значение настройки"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, updated_at)
+                VALUES (?, ?, CURRENT_TIMESTAMP)
+            ''', (key, value))
+            conn.commit()
+    
+    def get_participant_limit(self) -> int:
+        """Получить текущий лимит участников"""
+        limit_str = self.get_setting('participant_limit', '18')
+        try:
+            return int(limit_str)
+        except ValueError:
+            return 18
+    
+    def set_participant_limit(self, limit: int):
+        """Установить лимит участников"""
+        self.set_setting('participant_limit', str(limit))
+        logger.info(f"Установлен новый лимит участников: {limit}")
+    
+    def recalculate_participant_statuses(self, event_id: int):
+        """Пересчитать статусы участников после изменения лимита"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Получаем текущий лимит
+            limit = self.get_participant_limit()
+            
+            # Получаем всех участников события, отсортированных по позиции
+            cursor.execute('''
+                SELECT p.id, p.user_id, p.status, p.position
+                FROM participants p
+                WHERE p.event_id = ?
+                ORDER BY p.position
+            ''', (event_id,))
+            
+            participants = cursor.fetchall()
+            
+            # Обновляем статусы
+            for i, (participant_id, user_id, current_status, position) in enumerate(participants):
+                new_status = 'confirmed' if i < limit else 'reserve'
+                
+                if current_status != new_status:
+                    cursor.execute('''
+                        UPDATE participants 
+                        SET status = ? 
+                        WHERE id = ?
+                    ''', (new_status, participant_id))
+            
+            conn.commit()
+            logger.info(f"Пересчитаны статусы участников для события {event_id} с лимитом {limit}")
+    
+    def update_event_max_participants(self, event_id: int, max_participants: int):
+        """Обновить лимит участников в событии"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                UPDATE events 
+                SET max_participants = ? 
+                WHERE id = ?
+            ''', (max_participants, event_id))
+            conn.commit()
+            logger.info(f"Обновлен лимит участников для события {event_id}: {max_participants}") 

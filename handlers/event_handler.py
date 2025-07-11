@@ -132,7 +132,7 @@ async def handle_show_participants(update: Update, context: ContextTypes.DEFAULT
     
     except Exception as e:
         logger.error(f"Ошибка при показе списка участников: {e}", exc_info=True)
-        await update.message.reply_text("Ошибка при получении списка участников")
+        await update.message.reply_text("Ошибка при получении списка участников") 
 
 async def update_main_keyboard(update: Update, db: Database, event_service: EventService, user):
     """Обновить главную клавиатуру в соответствии с текущим состоянием пользователя"""

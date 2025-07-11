@@ -10,7 +10,8 @@ logger = logging.getLogger(__name__)
 class EventService:
     def __init__(self, database: Database):
         self.db = database
-        self.max_participants = BOT_SETTINGS['MAX_PARTICIPANTS']
+        # Убираем статический лимит, теперь берем из БД
+        # self.max_participants = BOT_SETTINGS['MAX_PARTICIPANTS']
     
     def _format_date_russian(self, target_date: date) -> str:
         """Форматировать дату на русском языке"""
@@ -57,7 +58,7 @@ class EventService:
                 name=event_name,
                 event_date=target_date,
                 event_time=training_time,
-                max_participants=self.max_participants
+                max_participants=self.get_max_participants()
             )
         else:
             event_name = f"Запись на тренировку по волейболу\n{formatted_date}"
@@ -65,7 +66,7 @@ class EventService:
                 name=event_name,
                 event_date=target_date,
                 event_time="20:00",
-                max_participants=self.max_participants
+                max_participants=self.get_max_participants()
             )
         logger.info(f"Создано событие: {event_name} с ID: {event_id}")
         return event_id
@@ -239,4 +240,24 @@ class EventService:
                         return event
                 else:
                     return event
-        return None 
+        return None
+    
+    def get_max_participants(self) -> int:
+        """Получить текущий лимит участников из базы данных"""
+        return self.db.get_participant_limit()
+    
+    def set_participant_limit(self, limit: int):
+        """Установить новый лимит участников и пересчитать статусы"""
+        self.db.set_participant_limit(limit)
+        
+        # Обновляем поле max_participants во всех активных событиях
+        active_events = self.get_active_events()
+        for event in active_events:
+            self.db.update_event_max_participants(event['id'], limit)
+            self.db.recalculate_participant_statuses(event['id'])
+        
+        logger.info(f"Установлен новый лимит участников: {limit}")
+    
+    def get_participant_limit(self) -> int:
+        """Получить текущий лимит участников"""
+        return self.get_max_participants() 
