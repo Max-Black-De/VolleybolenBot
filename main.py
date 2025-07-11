@@ -339,7 +339,4 @@ class VolleyballBot:
 
 if __name__ == "__main__":
     bot = VolleyballBot()
-    bot.run()
-    import time
-    while True:
-        time.sleep(10) 
+    bot.run() 
