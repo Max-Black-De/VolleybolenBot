@@ -82,6 +82,31 @@ class Database:
             
             conn.commit()
             logger.info("База данных инициализирована")
+            
+            # Очищаем фейковых пользователей при инициализации
+            self._cleanup_fake_users()
+    
+    def _cleanup_fake_users(self):
+        """Очистка фейковых пользователей (telegram_id 24 и 26)"""
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Удаляем фейковых пользователей
+            cursor.execute('DELETE FROM users WHERE telegram_id IN (24, 26)')
+            deleted_count = cursor.rowcount
+            
+            if deleted_count > 0:
+                logger.info(f"Удалено {deleted_count} фейковых пользователей")
+                
+                # Пересчитываем позиции участников во всех событиях
+                cursor.execute('SELECT DISTINCT event_id FROM participants')
+                event_ids = [row[0] for row in cursor.fetchall()]
+                
+                for event_id in event_ids:
+                    self._reorder_participants(event_id)
+                
+                conn.commit()
+                logger.info("Позиции участников пересчитаны после удаления фейковых пользователей")
     
     # Методы для работы с событиями
     def create_event(self, name: str, event_date: date, event_time: str, max_participants: int = 18) -> int:
