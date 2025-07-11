@@ -9,3 +9,8 @@ run:
   scriptName: ./main.py
   persistenceMount: /data
   containerPort: 80
+  env:
+    - name: DATABASE_PATH
+      value: /data/volleyball_bot.db
+    - name: LOGS_PATH
+      value: /data/logs

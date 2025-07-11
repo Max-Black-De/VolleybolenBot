@@ -1,5 +1,6 @@
 import sqlite3
 import logging
+import os
 from datetime import datetime, date
 from typing import List, Dict, Optional
 from utils.timezone_utils import get_now_with_timezone
@@ -7,7 +8,17 @@ from utils.timezone_utils import get_now_with_timezone
 logger = logging.getLogger(__name__)
 
 class Database:
-    def __init__(self, db_path: str = "volleyball_bot.db"):
+    def __init__(self, db_path: Optional[str] = None):
+        # Используем переменную окружения или путь по умолчанию
+        if db_path is None:
+            db_path = os.getenv('DATABASE_PATH', 'volleyball_bot.db')
+        
+        # Создаем директорию для базы данных, если её нет
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
+            logger.info(f"Создана директория для базы данных: {db_dir}")
+        
         self.db_path = db_path
         self.init_database()
     

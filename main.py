@@ -1,5 +1,6 @@
 import logging
 import locale
+import os
 from datetime import datetime, time
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
@@ -17,8 +18,20 @@ from handlers.admin_handler import handle_admin_commands
 # Устанавливаем локаль на русский язык для вывода даты
 locale.setlocale(locale.LC_TIME, 'C')
 
-# Логирование
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s', level=logging.INFO)
+# Настройка логирования в постоянную директорию
+logs_path = os.getenv('LOGS_PATH', 'logs')
+if not os.path.exists(logs_path):
+    os.makedirs(logs_path, exist_ok=True)
+
+# Настраиваем логирование в файл и консоль
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(os.path.join(logs_path, 'bot.log'), encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 logger = logging.getLogger(__name__)
 
 # Инициализация компонентов
