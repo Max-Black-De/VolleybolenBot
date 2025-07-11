@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def backup_database():
     """Создать резервную копию базы данных"""
-    db_path = os.getenv('DATABASE_PATH', 'volleyball_bot.db')
+    db_path = os.getenv('DATABASE_PATH', '/data/volleyball_bot.db')
     backup_path = f"{db_path}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     
     if os.path.exists(db_path):
@@ -30,7 +30,7 @@ def backup_database():
 
 def restore_database():
     """Восстановить базу данных из резервной копии"""
-    db_path = os.getenv('DATABASE_PATH', 'volleyball_bot.db')
+    db_path = os.getenv('DATABASE_PATH', '/data/volleyball_bot.db')
     
     # Ищем последнюю резервную копию
     backup_files = [f for f in os.listdir('.') if f.startswith('volleyball_bot.db.backup.')]
@@ -46,7 +46,7 @@ def restore_database():
 
 def check_database_integrity():
     """Проверить целостность базы данных"""
-    db_path = os.getenv('DATABASE_PATH', 'volleyball_bot.db')
+    db_path = os.getenv('DATABASE_PATH', '/data/volleyball_bot.db')
     
     if not os.path.exists(db_path):
         logger.warning("База данных не найдена")
