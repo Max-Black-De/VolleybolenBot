@@ -302,6 +302,14 @@ class VolleyballBot:
                     await self.notification_service.send_auto_leave_notification(
                         participant['telegram_id'], event['name']
                     )
+                    # Отправляем обновлённую клавиатуру (пользователь теперь не записан)
+                    from utils.keyboard import create_main_keyboard, get_is_joined
+                    is_joined = get_is_joined(self.db, self.event_service, participant['telegram_id'])
+                    await self.application.bot.send_message(
+                        chat_id=participant['telegram_id'],
+                        text="Вы можете снова записаться на тренировку!",
+                        reply_markup=create_main_keyboard(is_joined=is_joined)
+                    )
                 
                 # Автоматически отписываем и перемещаем из резерва
                 moved_participants = self.event_service.auto_leave_unconfirmed(event['id'])
