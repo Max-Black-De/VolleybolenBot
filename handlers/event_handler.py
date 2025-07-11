@@ -34,9 +34,23 @@ async def handle_event_actions(update: Update, context: ContextTypes.DEFAULT_TYP
     # Удаляю все старые проверки статуса пользователя, оставляю только get_is_joined
     
     if text == "Иду на тренировку!":
+        is_joined = get_is_joined(db, event_service, user.id)
+        if is_joined:
+            await update.message.reply_text(
+                "Вы уже записаны на это событие.",
+                reply_markup=create_main_keyboard(is_joined=True)
+            )
+            return
         await handle_join_event(update, context, event_service, notification_service, db, event_id, user)
     
     elif text == "Передумал! Отписываюсь(":
+        is_joined = get_is_joined(db, event_service, user.id)
+        if not is_joined:
+            await update.message.reply_text(
+                "Вы не записаны на это событие.",
+                reply_markup=create_main_keyboard(is_joined=False)
+            )
+            return
         await handle_leave_event(update, context, event_service, notification_service, event_id, user)
     
     elif text == "Список участников":
