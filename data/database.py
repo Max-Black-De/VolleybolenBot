@@ -11,7 +11,7 @@ class Database:
     def __init__(self, db_path: Optional[str] = None):
         # Используем переменную окружения или путь по умолчанию
         if db_path is None:
-            db_path = os.getenv('DATABASE_PATH', 'volleyball_bot.db')
+            db_path = os.getenv('DATABASE_PATH', '/data/volleyball_bot.db')
         
         # Создаем директорию для базы данных, если её нет
         db_dir = os.path.dirname(db_path)
