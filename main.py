@@ -185,21 +185,20 @@ class VolleyballBot:
                     await self.notification_service.send_moved_to_main_notification(
                         moved_user['telegram_id'], moved_user['username']
                     )
-                # Отправляем новое сообщение с актуальной клавиатурой
+                # Отправляем новое сообщение с актуальной клавиатурой после отписки
                 is_joined = get_is_joined(self.db, self.event_service, telegram_id)
                 await self.application.bot.send_message(
                     chat_id=telegram_id,
-                    text="Обновлено",
+                    text="Вы можете снова записаться на тренировку!",
                     reply_markup=create_main_keyboard(is_joined=is_joined)
                 )
             else:
                 await query.edit_message_text(result['message'])
                 # Если пользователь не записан, обновляем клавиатуру
-                from utils.keyboard import create_main_keyboard, get_is_joined
                 is_joined = get_is_joined(self.db, self.event_service, telegram_id)
                 await self.application.bot.send_message(
                     chat_id=telegram_id,
-                    text="Ваша клавиатура обновлена. Если что-то не так — используйте /start.",
+                    text="Ваша клавиатура обновлена.",
                     reply_markup=create_main_keyboard(is_joined=is_joined)
                 )
 
