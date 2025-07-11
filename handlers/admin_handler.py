@@ -59,7 +59,7 @@ async def handle_admin_commands(update: Update, context: ContextTypes.DEFAULT_TY
     elif admin_state == 'confirm_delete':
         await handle_confirm_delete(update, context, text, event_service)
     elif admin_state == 'participant_limit':
-        await handle_participant_limit(update, context, text, event_service)
+        await handle_participant_limit(update, context, text, event_service, notification_service, db)
     elif admin_state is None and text in [
         "📅 Создать событие", "❌ Отменить событие", "👥 Список пользователей", 
         "📊 Статистика", "⚙️ Настройки"
@@ -169,7 +169,7 @@ async def handle_settings(update: Update, context: ContextTypes.DEFAULT_TYPE, te
     await update.message.reply_text("Функция настроек пока в разработке.")
 
 
-async def handle_participant_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, event_service: EventService):
+async def handle_participant_limit(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, event_service: EventService, notification_service: NotificationService, db: Database):
     """Обработка изменения лимита участников."""
     if not update.message:
         return
@@ -193,12 +193,38 @@ async def handle_participant_limit(update: Update, context: ContextTypes.DEFAULT
         new_limit = limit_map[text]
         old_limit = event_service.get_participant_limit()
         
-        # Устанавливаем новый лимит
-        event_service.set_participant_limit(new_limit)
+        # Устанавливаем новый лимит и получаем перемещенных участников
+        moved_participants = event_service.set_participant_limit(new_limit)
+        
+        # Отправляем уведомления перемещенным участникам
+        for moved_participant in moved_participants:
+            await notification_service.send_moved_to_main_notification(
+                moved_participant['telegram_id'], 
+                moved_participant['username']
+            )
+        
+        # Отправляем уведомление всем пользователям об изменении лимита
+        subscribed_users = db.get_subscribed_users()
+        for telegram_id in subscribed_users:
+            try:
+                # Обновляем клавиатуру для каждого пользователя
+                is_joined = get_is_joined(db, event_service, telegram_id)
+                from utils.keyboard import create_main_keyboard
+                keyboard = create_main_keyboard(is_joined=is_joined)
+                
+                await notification_service.bot.send_message(
+                    chat_id=telegram_id,
+                    text=f"🔄 Лимит участников изменен с {old_limit} на {new_limit}",
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                logger.error(f"Ошибка при обновлении клавиатуры пользователя {telegram_id}: {e}")
         
         await update.message.reply_text(
             f"✅ Лимит участников изменен с {old_limit} на {new_limit}.\n\n"
-            "Статусы участников пересчитаны автоматически."
+            f"Статусы участников пересчитаны автоматически.\n"
+            f"Уведомления отправлены {len(moved_participants)} перемещенным участникам.\n"
+            f"Клавиатуры всех пользователей обновлены."
         )
         
         # Возвращаемся в главное админское меню

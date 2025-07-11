@@ -252,11 +252,36 @@ class EventService:
         
         # Обновляем поле max_participants во всех активных событиях
         active_events = self.get_active_events()
+        moved_participants = []
+        
         for event in active_events:
+            # Получаем участников до изменения
+            participants_before = self.db.get_event_participants(event['id'])
+            reserve_before = [p for p in participants_before if p['status'] == 'reserve']
+            
+            # Обновляем лимит и пересчитываем статусы
             self.db.update_event_max_participants(event['id'], limit)
             self.db.recalculate_participant_statuses(event['id'])
+            
+            # Получаем участников после изменения
+            participants_after = self.db.get_event_participants(event['id'])
+            
+            # Находим тех, кто переместился из резерва в основной состав
+            for participant in participants_after:
+                if participant['status'] == 'confirmed':
+                    # Проверяем, был ли он в резерве до изменения
+                    was_in_reserve = any(p['telegram_id'] == participant['telegram_id'] and p['status'] == 'reserve' 
+                                       for p in participants_before)
+                    if was_in_reserve:
+                        moved_participants.append({
+                            'telegram_id': participant['telegram_id'],
+                            'username': participant['username'] or f"Пользователь {participant['telegram_id']}"
+                        })
         
         logger.info(f"Установлен новый лимит участников: {limit}")
+        
+        # Возвращаем список перемещенных участников для отправки уведомлений
+        return moved_participants
     
     def get_participant_limit(self) -> int:
         """Получить текущий лимит участников"""
