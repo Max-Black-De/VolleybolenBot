@@ -202,6 +202,21 @@ async def handle_participant_limit(update: Update, context: ContextTypes.DEFAULT
                 moved_participant['telegram_id'], 
                 moved_participant['username']
             )
+            
+            # Отправляем обновленный список участников перемещенным пользователям
+            try:
+                # Получаем информацию о событии
+                active_events = event_service.get_active_events()
+                if active_events:
+                    event_info = event_service.get_event_by_id(active_events[0]['id'])
+                    participants_list = event_service.get_participants_list(active_events[0]['id'], event_info)
+                    
+                    await notification_service.bot.send_message(
+                        chat_id=moved_participant['telegram_id'],
+                        text=f"📋 Обновленный список участников:\n\n{participants_list}"
+                    )
+            except Exception as e:
+                logger.error(f"Ошибка при отправке списка участников пользователю {moved_participant['telegram_id']}: {e}")
         
         # Отправляем уведомление всем пользователям об изменении лимита
         subscribed_users = db.get_subscribed_users()
