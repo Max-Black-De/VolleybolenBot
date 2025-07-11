@@ -194,6 +194,14 @@ class VolleyballBot:
                 )
             else:
                 await query.edit_message_text(result['message'])
+                # Если пользователь не записан, обновляем клавиатуру
+                from utils.keyboard import create_main_keyboard, get_is_joined
+                is_joined = get_is_joined(self.db, self.event_service, telegram_id)
+                await self.application.bot.send_message(
+                    chat_id=telegram_id,
+                    text="Ваша клавиатура обновлена. Если что-то не так — используйте /start.",
+                    reply_markup=create_main_keyboard(is_joined=is_joined)
+                )
 
     async def handle_presence_confirmation_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE, data: list):
         """Обработка подтверждения присутствия"""
