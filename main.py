@@ -83,8 +83,8 @@ class VolleyballBot:
         job_queue.run_daily(self.send_second_reminders, time(hour=18, minute=55, tzinfo=tz), days=(3, 6))
         # Автоматическая отписка через 5 минуты после второго напоминания
         job_queue.run_daily(self.auto_leave_unconfirmed, time(hour=19, minute=0, tzinfo=tz), days=(3, 6))
-        # Очистка прошедших событий каждый день в 23:59
-        job_queue.run_daily(self.cleanup_past_events, time(hour=23, minute=59, tzinfo=tz))
+        # Очистка прошедших событий каждый день в 21:59
+        job_queue.run_daily(self.cleanup_past_events, time(hour=21, minute=59, tzinfo=tz))
         # Создание первого события при запуске
         job_queue.run_once(self.create_initial_event, 0)
 
@@ -125,7 +125,10 @@ class VolleyballBot:
             await self.handle_leave_confirmation_callback(update, context, data)
         elif action in ['confirm_presence', 'decline_presence']:
             await self.handle_presence_confirmation_callback(update, context, data)
-    
+        elif action == 'confirm_leave':
+            # Обработка отписки из клавиатуры выбора действий
+            await self.handle_leave_confirmation_callback(update, context, ['confirm'] + data[1:])
+
     async def message_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик текстовых сообщений"""
         if not update.message or not update.message.text:
@@ -162,6 +165,31 @@ class VolleyballBot:
             event_info = self.event_service.get_event_by_id(event_id)
             participants_list = self.event_service.get_participants_list(event_id, event_info)
             await query.edit_message_text(f"Вы передумали!🥳\n\n{participants_list}")
+            return
+        
+        elif action == "confirm_presence":
+            # Пользователь подтвердил присутствие
+            success = self.event_service.confirm_presence(event_id, telegram_id)
+            if success:
+                await query.edit_message_text("✅ Присутствие подтверждено! Увидимся на тренировке!")
+                
+                # Показываем обновленный список участников
+                event_info = self.event_service.get_event_by_id(event_id)
+                participants_list = self.event_service.get_participants_list(event_id, event_info)
+                await self.application.bot.send_message(
+                    chat_id=telegram_id,
+                    text=participants_list
+                )
+                
+                # Обновляем клавиатуру
+                is_joined = get_is_joined(self.db, self.event_service, telegram_id)
+                await self.application.bot.send_message(
+                    chat_id=telegram_id,
+                    text="Клавиатура обновлена",
+                    reply_markup=create_main_keyboard(is_joined=is_joined)
+                )
+            else:
+                await query.edit_message_text("❌ Ошибка подтверждения присутствия")
             return
         
         elif action == "confirm":
@@ -218,6 +246,22 @@ class VolleyballBot:
             success = self.event_service.confirm_presence(event_id, telegram_id)
             if success:
                 await query.edit_message_text("✅ Присутствие подтверждено! Увидимся на тренировке!")
+                
+                # Показываем обновленный список участников
+                event_info = self.event_service.get_event_by_id(event_id)
+                participants_list = self.event_service.get_participants_list(event_id, event_info)
+                await self.application.bot.send_message(
+                    chat_id=telegram_id,
+                    text=participants_list
+                )
+                
+                # Обновляем клавиатуру
+                is_joined = get_is_joined(self.db, self.event_service, telegram_id)
+                await self.application.bot.send_message(
+                    chat_id=telegram_id,
+                    text="Клавиатура обновлена",
+                    reply_markup=create_main_keyboard(is_joined=is_joined)
+                )
             else:
                 await query.edit_message_text("❌ Ошибка подтверждения присутствия")
         
