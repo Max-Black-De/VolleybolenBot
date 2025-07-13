@@ -6,9 +6,9 @@ BOT_SETTINGS = {
     'TIMEZONE': '+5',  # GMT+5
     'EVENT_CREATION_TIME': '17:00',  # Время создания событий
     'REMINDER_TIME': '18:00',  # За 2 часа до тренировки
-    'SECOND_REMINDER_TIME': '18:57',  # За 1:03 до тренировки
+    'SECOND_REMINDER_TIME': '18:55',  # За 1:05 до тренировки
     'AUTO_LEAVE_TIME': '19:00',  # Автоматическая отписка
-    'EVENT_CLEANUP_TIME': '23:59'  # Удаление события
+    'EVENT_CLEANUP_TIME': '21:59'  # Удаление события
 }
 
 # Администраторы (Telegram ID)

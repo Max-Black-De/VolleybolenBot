@@ -178,6 +178,16 @@ class Database:
             cursor = conn.cursor()
             # Используем текущую дату с таймзоной вместо SQL DATE('now')
             current_date = get_now_with_timezone().date()
+            
+            # Сначала удаляем участников прошедших событий
+            cursor.execute('''
+                DELETE FROM participants 
+                WHERE event_id IN (
+                    SELECT id FROM events WHERE date < ?
+                )
+            ''', (current_date,))
+            
+            # Затем удаляем сами события
             cursor.execute('''
                 DELETE FROM events 
                 WHERE date < ?
