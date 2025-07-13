@@ -345,12 +345,17 @@ class VolleyballBot:
                 # Получаем участников для автоматической отписки
                 unconfirmed = self.event_service.get_unconfirmed_participants(event['id'])
                 
+                # Сначала отправляем уведомления об автоматической отписке
                 for participant in unconfirmed:
-                    # Отправляем уведомление об автоматической отписке
                     await self.notification_service.send_auto_leave_notification(
                         participant['telegram_id'], event['name']
                     )
-                    # Отправляем обновлённую клавиатуру (пользователь теперь не записан)
+                
+                # Автоматически отписываем и перемещаем из резерва
+                moved_participants = self.event_service.auto_leave_unconfirmed(event['id'])
+                
+                # После удаления из базы отправляем обновлённую клавиатуру
+                for participant in unconfirmed:
                     from utils.keyboard import create_main_keyboard, get_is_joined
                     is_joined = get_is_joined(self.db, self.event_service, participant['telegram_id'])
                     await self.application.bot.send_message(
@@ -358,9 +363,6 @@ class VolleyballBot:
                         text="Вы можете снова записаться на тренировку!",
                         reply_markup=create_main_keyboard(is_joined=is_joined)
                     )
-                
-                # Автоматически отписываем и перемещаем из резерва
-                moved_participants = self.event_service.auto_leave_unconfirmed(event['id'])
                 
                 # Уведомляем перемещенных участников
                 for moved_participant in moved_participants:
