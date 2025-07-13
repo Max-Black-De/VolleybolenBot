@@ -4,6 +4,7 @@ import os
 from datetime import datetime, time
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from pytz import timezone
 
 from config.secure import secrets
 from config.settings import BOT_SETTINGS, MESSAGES, ADMIN_IDS
@@ -72,22 +73,18 @@ class VolleyballBot:
         if not job_queue:
             logger.warning("Job queue недоступен")
             return
-        
+        from pytz import timezone
+        tz = timezone('Asia/Yekaterinburg')
         # Создание событий по расписанию (вторник и пятница в 17:00)
-        job_queue.run_daily(self.create_scheduled_events, time(hour=17, minute=0), days=(1, 4))  # 1=вторник, 4=пятница
-        
+        job_queue.run_daily(self.create_scheduled_events, time(hour=17, minute=0, tzinfo=tz), days=(1, 4))  # 1=вторник, 4=пятница
         # Напоминания за 2 часа до тренировки
-        job_queue.run_daily(self.send_presence_reminders, time(hour=18, minute=0), days=(3, 6))  # 3=четверг, 6=воскресенье
-        
+        job_queue.run_daily(self.send_presence_reminders, time(hour=18, minute=0, tzinfo=tz), days=(3, 6))  # 3=четверг, 6=воскресенье
         # Повторные напоминания за 1:05 до тренировки
-        job_queue.run_daily(self.send_second_reminders, time(hour=18, minute=55), days=(3, 6))
-        
+        job_queue.run_daily(self.send_second_reminders, time(hour=18, minute=55, tzinfo=tz), days=(3, 6))
         # Автоматическая отписка через 5 минуты после второго напоминания
-        job_queue.run_daily(self.auto_leave_unconfirmed, time(hour=19, minute=0), days=(3, 6))
-        
+        job_queue.run_daily(self.auto_leave_unconfirmed, time(hour=19, minute=0, tzinfo=tz), days=(3, 6))
         # Очистка прошедших событий каждый день в 23:59
-        job_queue.run_daily(self.cleanup_past_events, time(hour=23, minute=59))
-        
+        job_queue.run_daily(self.cleanup_past_events, time(hour=23, minute=59, tzinfo=tz))
         # Создание первого события при запуске
         job_queue.run_once(self.create_initial_event, 0)
 
