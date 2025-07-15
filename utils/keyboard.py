@@ -20,7 +20,7 @@ def create_leave_confirmation_keyboard(event_id: int, telegram_id: int) -> Inlin
     keyboard = [
         [
             InlineKeyboardButton("Да! Отписаться", callback_data=f"confirm_leave_{event_id}_{telegram_id}"),
-            InlineKeyboardButton("Вернусь на треню", callback_data=f"cancel_leave_{event_id}_{telegram_id}")
+            InlineKeyboardButton("Вернусь на треню", callback_data=f"confirm_presence_{event_id}_{telegram_id}")
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

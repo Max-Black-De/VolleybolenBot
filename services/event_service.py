@@ -162,6 +162,10 @@ class EventService:
         else:
             header = "Список участников:"
         
+        # Добавляем текущее время для проверки часового пояса
+        current_time = get_now_with_timezone().strftime("%d.%m.%Y %H:%M:%S")
+        header += f"\n🕐 Текущее время: {current_time}"
+        
         lines = [header]
         for i, participant in enumerate(participants, 1):
             status = "Резерв" if participant['status'] == 'reserve' else "Основной"

@@ -57,7 +57,7 @@ async def handle_admin_commands(update: Update, context: ContextTypes.DEFAULT_TY
     elif admin_state == 'settings':
         await handle_settings(update, context, text, event_service)
     elif admin_state == 'confirm_delete':
-        await handle_confirm_delete(update, context, text, event_service)
+        await handle_confirm_delete(update, context, text, event_service, notification_service, db)
     elif admin_state == 'participant_limit':
         await handle_participant_limit(update, context, text, event_service, notification_service, db)
     elif admin_state is None and text in [
@@ -275,7 +275,7 @@ async def show_active_events_for_deletion(update: Update, context: ContextTypes.
     await update.message.reply_text(events_text)
 
 
-async def handle_confirm_delete(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, event_service: EventService):
+async def handle_confirm_delete(update: Update, context: ContextTypes.DEFAULT_TYPE, text: str, event_service: EventService, notification_service: NotificationService, db: Database):
     """Обработка подтверждения удаления события по ID."""
     if not update.message:
         return
@@ -285,8 +285,24 @@ async def handle_confirm_delete(update: Update, context: ContextTypes.DEFAULT_TY
         active_events = user_data.get('active_events_for_deletion', [])
         event_to_delete = next((event for event in active_events if event['id'] == event_id), None)
         if event_to_delete:
+            # Получаем участников до удаления
+            participants = event_service.db.get_event_participants(event_id)
+            # Удаляем событие
             event_service.delete_event(event_to_delete['id'])
             await update.message.reply_text(f"✅ Событие '{event_to_delete['name']}' удалено.")
+            # Обновляем клавиатуру для всех участников
+            from utils.keyboard import create_main_keyboard
+            for participant in participants:
+                telegram_id = participant['telegram_id']
+                keyboard = create_main_keyboard(is_joined=False)
+                try:
+                    await notification_service.bot.send_message(
+                        chat_id=telegram_id,
+                        text="❌ Событие отменено. Вы можете записаться на следующее!",
+                        reply_markup=keyboard
+                    )
+                except Exception as e:
+                    logger.error(f'Ошибка при отправке клавиатуры после удаления события для {telegram_id}: {e}')
         else:
             events_text = "❌ Неверный ID события.\n\nДоступные события:\n" + "\n".join(
                 [f"{event['name']} (ID: {event['id']})" for event in active_events]

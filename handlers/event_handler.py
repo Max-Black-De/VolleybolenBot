@@ -77,7 +77,10 @@ async def handle_join_event(update: Update, context: ContextTypes.DEFAULT_TYPE,
         )
         
         if result['success']:
-            await update.message.reply_text(result['message'])
+            # Сразу подтверждаем присутствие
+            event_service.confirm_presence(event_id, user.id)
+            
+            await update.message.reply_text(result['message'] + "\n\n✅ Ваше присутствие подтверждено!")
             
             # Получаем информацию о событии
             event_info = event_service.get_event_by_id(event_id)
