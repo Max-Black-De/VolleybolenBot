@@ -32,6 +32,7 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
+logging.getLogger().setLevel(logging.DEBUG)
 logging.getLogger("services.event_service").setLevel(logging.DEBUG)
 logger = logging.getLogger(__name__)
 

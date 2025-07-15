@@ -50,6 +50,7 @@ class EventService:
             delta_days = 4
         next_training_day = today + timedelta(days=delta_days)
         logger.debug(f"DEBUG: today={today} ({days_map[weekday]}), weekday={weekday}, delta_days={delta_days}, next_training_day={next_training_day} ({days_map[next_training_day.weekday()]})")
+        print(f"DEBUG: today={today} ({days_map[weekday]}), weekday={weekday}, delta_days={delta_days}, next_training_day={next_training_day} ({days_map[next_training_day.weekday()]})")
         return next_training_day
     
     def create_event_on_date(self, target_date: date) -> int:
