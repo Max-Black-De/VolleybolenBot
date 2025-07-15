@@ -33,13 +33,24 @@ class EventService:
         """Определить ближайший тренировочный день"""
         today = get_now_with_timezone().date()
         weekday = today.weekday()
+        days_map = {
+            0: 'Понедельник',
+            1: 'Вторник',
+            2: 'Среда',
+            3: 'Четверг',
+            4: 'Пятница',
+            5: 'Суббота',
+            6: 'Воскресенье',
+        }
         if weekday < 3:
             delta_days = 3 - weekday
         elif weekday < 6:
             delta_days = 6 - weekday
         else:
             delta_days = 4
-        return today + timedelta(days=delta_days)
+        next_training_day = today + timedelta(days=delta_days)
+        logger.debug(f"DEBUG: today={today} ({days_map[weekday]}), weekday={weekday}, delta_days={delta_days}, next_training_day={next_training_day} ({days_map[next_training_day.weekday()]})")
+        return next_training_day
     
     def create_event_on_date(self, target_date: date) -> int:
         """Создать событие на конкретную дату и время, если его ещё нет"""
