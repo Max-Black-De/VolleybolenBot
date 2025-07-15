@@ -6,6 +6,8 @@ from services.notification_service import NotificationService
 from data.database import Database
 from utils.keyboard import create_main_keyboard, create_leave_confirmation_keyboard, get_is_joined
 from config.settings import MESSAGES
+from datetime import timedelta
+from utils.timezone_utils import get_now_with_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +147,33 @@ async def handle_show_participants(update: Update, context: ContextTypes.DEFAULT
         event_info = event_service.get_event_by_id(event_id)
         
         participants_list = event_service.get_participants_list(event_id, event_info)
-        await update.message.reply_text(participants_list)
+        
+        # Получаем debug-данные о расчёте следующей тренировки
+        today = get_now_with_timezone().date()
+        weekday = today.weekday()
+        days_map = {
+            0: 'Понедельник',
+            1: 'Вторник',
+            2: 'Среда',
+            3: 'Четверг',
+            4: 'Пятница',
+            5: 'Суббота',
+            6: 'Воскресенье',
+        }
+        if weekday < 3:
+            delta_days = 3 - weekday
+        elif weekday < 6:
+            delta_days = 6 - weekday
+        else:
+            delta_days = 4
+        next_training_day = today + timedelta(days=delta_days)
+        debug_info = (f"\n\nDEBUG:\n"
+                      f"today={today} ({days_map[weekday]})\n"
+                      f"weekday={weekday}\n"
+                      f"delta_days={delta_days}\n"
+                      f"next_training_day={next_training_day} ({days_map[next_training_day.weekday()]})")
+        
+        await update.message.reply_text(participants_list + debug_info)
     
     except Exception as e:
         logger.error(f"Ошибка при показе списка участников: {e}", exc_info=True)
