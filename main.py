@@ -4,7 +4,6 @@ import os
 from datetime import datetime, time
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
-from pytz import timezone
 
 from config.secure import secrets
 from config.settings import BOT_SETTINGS, MESSAGES, ADMIN_IDS
@@ -26,7 +25,7 @@ if not os.path.exists(logs_path):
 
 # Настраиваем логирование в файл и консоль
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.FileHandler(os.path.join(logs_path, 'bot.log'), encoding='utf-8'),
