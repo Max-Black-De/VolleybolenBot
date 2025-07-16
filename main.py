@@ -87,7 +87,7 @@ class VolleyballBot:
         # Очистка прошедших событий каждый день в 21:59
         job_queue.run_daily(self.cleanup_past_events, time(hour=21, minute=59, tzinfo=tz), days=(4, 7))
         # Создание первого события при запуске
-        # job_queue.run_once(self.create_initial_event, 0)
+        job_queue.run_once(self.create_initial_event, 0)
 
     async def start_handler(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /start"""
