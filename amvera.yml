@@ -9,3 +9,6 @@ run:
   scriptName: main.py
   persistenceMount: /data
   containerPort: 80
+  env:
+    - name: AMVERA_DEPLOY
+      value: "1"
