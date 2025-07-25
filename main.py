@@ -391,9 +391,25 @@ class VolleyballBot:
         self.setup_handlers()
         self.setup_jobs()
         
-        # Запускаем бота
-        logger.info("Бот запущен")
-        self.application.run_polling()
+        # Определяем режим запуска
+        if os.getenv("USE_WEBHOOK", "0") == "1":
+            # Для Amvera/продакшн с webhook
+            logger.info("Запуск в режиме webhook")
+            self.application.run_webhook(
+                listen="0.0.0.0",
+                port=int(os.getenv("PORT", 80)),
+                url_path="",
+                webhook_url=os.getenv("WEBHOOK_URL", "")
+            )
+        elif os.getenv("AMVERA_DEPLOY", "0") == "1":
+            # Для Amvera без webhook (платформа сама настроит)
+            logger.info("Запуск на Amvera - платформа сама настроит webhook")
+            # Не вызываем ни run_polling, ни run_webhook
+            # Amvera сама вызовет нужный entrypoint
+        else:
+            # Для локальной разработки
+            logger.info("Запуск в режиме polling (локальная разработка)")
+            self.application.run_polling()
 
 if __name__ == "__main__":
     bot = VolleyballBot()
